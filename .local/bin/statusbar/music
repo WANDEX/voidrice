@@ -1,17 +1,34 @@
 #!/bin/sh
 
-filter() { mpc | sed "/^volume:/d;s/\\&/&amp;/g;s/\\[paused\\].*/⏸/g;/\\[playing\\].*/d" | paste -sd ' ';}
+arg="$1"
+
+parse() {
+    mpc | sed "/^volume:/d;
+        s/\\[paused\\].*/ /g;
+        s/\\[playing\\].*/ /g;
+        s/\(^.*\)\( - \)\(.*$\)/\3\2\1/" | tac | paste -sd ' ';
+}
+
+filter() {
+    status=$(parse)
+    raw=$(echo "$status" | sed "s/\([ ].[ ]\)\(.*\)\( - \)\(.*$\)/\4\3\2/")
+    case "$arg" in
+        clip|-c|c) printf "%s" "$raw" | xclip -sel c && notify-send -u low "📋 track:" "$raw\n" ;;
+        "") echo "$raw" ;;
+        *) echo "$status" | sed "s/;/.,/g" ;; # replace ; character, as it's default statusbar delimiter
+    esac
+}
 
 pidof -x mpdup >/dev/null 2>&1 || mpdup >/dev/null 2>&1 &
 
 case $BLOCK_BUTTON in
-	1) mpc status | filter ; setsid -f "$TERMINAL" -e ncmpcpp ;;  # right click, pause/unpause
-	2) mpc toggle | filter ;;  # right click, pause/unpause
+	1) mpc toggle | filter ;;  # left click, pause/unpause
+	2) mpc status | filter ; setsid -f "$TERMINAL" -e ncmpcpp ;;
 	3) mpc status | filter ; notify-send "🎵 Music module" "\- Shows mpd song playing.
-- ⏸ when paused.
-- Left click opens ncmpcpp.
-- Middle click pauses.
-- Scroll changes track.";;  # right click, pause/unpause
+-  when paused.
+- Left click pauses.
+- Middle click opens ncmpcpp.
+- Scroll changes track.";;
 	4) mpc prev   | filter ;;  # scroll up, previous
 	5) mpc next   | filter ;;  # scroll down, next
 	6) mpc status | filter ; "$TERMINAL" -e "$EDITOR" "$0" ;;
