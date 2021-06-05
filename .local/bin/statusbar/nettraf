@@ -5,10 +5,14 @@
 # second, gives network traffic per second.
 
 case $BLOCK_BUTTON in
-	3) notify-send "🌐 Network traffic module" "🔻: Traffic received
-🔺: Traffic transmitted" ;;
+	3) notify-send "🌐 Network traffic module" ": Traffic received
+: Traffic transmitted" ;;
 	6) "$TERMINAL" -e "$EDITOR" "$0" ;;
 esac
+
+cache=${CSCRDIR:-$XDG_CACHE_HOME}/bar/nettraf
+# maybe it's safer(faster) to double check before, even with '-p' option.
+[ ! -d "$cache" ] && mkdir -p "$cache"
 
 update() {
     sum=0
@@ -16,7 +20,7 @@ update() {
         read -r i < "$arg"
         sum=$(( sum + i ))
     done
-    cache=${XDG_CACHE_HOME:-$HOME/.cache}/${1##*/}
+    cache=${cache:-$HOME/.cache}/${1##*/}
     [ -f "$cache" ] && read -r old < "$cache" || old=0
     printf %d\\n "$sum" > "$cache"
     printf %d\\n $(( sum - old ))
@@ -25,4 +29,8 @@ update() {
 rx=$(update /sys/class/net/[ew]*/statistics/rx_bytes)
 tx=$(update /sys/class/net/[ew]*/statistics/tx_bytes)
 
-printf "🔻%4sB 🔺%4sB\\n" $(numfmt --to=iec $rx) $(numfmt --to=iec $tx)
+#printf "%4sB %4sB" "$(numfmt --to=iec "$rx")" "$(numfmt --to=iec "$tx")"
+
+# this is not accurate but doesn't have 1024 - since there is only 1000
+# -> only one digit of length 4, numfmt not always formats numbers >1000 dunno why.
+printf "%4sB %4sB" "$(numfmt --to=si "$rx")" "$(numfmt --to=si "$tx")"
